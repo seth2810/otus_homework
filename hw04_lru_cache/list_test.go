@@ -49,3 +49,107 @@ func TestList(t *testing.T) {
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
 }
+
+func TestList_Single(t *testing.T) {
+	t.Run("front", func(t *testing.T) {
+		l := NewList()
+		l.PushFront(10)
+
+		require.Equal(t, 10, l.Back().Value)
+		require.Equal(t, 10, l.Front().Value)
+	})
+
+	t.Run("back", func(t *testing.T) {
+		l := NewList()
+		l.PushBack(10)
+
+		require.Equal(t, 10, l.Back().Value)
+		require.Equal(t, 10, l.Front().Value)
+	})
+
+	t.Run("move", func(t *testing.T) {
+		l := NewList()
+		l.PushBack(10)
+		l.MoveToFront(l.Back())
+
+		require.Equal(t, 10, l.Back().Value)
+		require.Equal(t, 10, l.Front().Value)
+	})
+
+	t.Run("remove", func(t *testing.T) {
+		l := NewList()
+		l.PushBack(10)
+		l.Remove(l.Back())
+
+		require.Nil(t, l.Back())
+		require.Nil(t, l.Front())
+		require.Equal(t, 0, l.Len())
+	})
+}
+
+func TestList_EqualValues(t *testing.T) {
+	t.Run("length", func(t *testing.T) {
+		l := NewList()
+		l.PushBack(10)
+		l.PushFront(10)
+
+		require.Equal(t, 2, l.Len())
+
+		b := l.Back()
+		f := l.Front()
+
+		require.NotSame(t, b, f)
+	})
+
+	t.Run("swap", func(t *testing.T) {
+		l := NewList()
+		l.PushBack(10)
+		l.PushFront(10)
+		l.MoveToFront(l.Back())
+
+		require.Equal(t, 2, l.Len())
+
+		b := l.Back()
+		f := l.Front()
+
+		require.NotSame(t, b, f)
+
+		l.MoveToFront(l.Back())
+
+		b = l.Back()
+		f = l.Front()
+
+		require.NotSame(t, b, f)
+	})
+
+	t.Run("remove", func(t *testing.T) {
+		l := NewList()
+		l.PushBack(10)
+		l.PushFront(20)
+
+		r := l.Front()
+
+		l.Remove(r)
+
+		require.Equal(t, 1, l.Len())
+
+		b := l.Back()
+		f := l.Front()
+
+		require.Same(t, b, f)
+	})
+}
+
+func TestList_Different(t *testing.T) {
+	l := NewList()
+	l.PushBack(10)
+	l.PushBack(20)
+
+	b := l.Back()
+
+	l.MoveToFront(b)
+
+	f := l.Front()
+
+	require.NotSame(t, b, f)
+}
