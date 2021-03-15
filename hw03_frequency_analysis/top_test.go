@@ -7,7 +7,7 @@ import (
 )
 
 // Change to true if needed.
-var taskWithAsteriskIsCompleted = false
+var taskWithAsteriskIsCompleted = true
 
 var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
@@ -42,6 +42,11 @@ var text = `Как видите, он  спускается  по  лестни�
 	иногда,  особенно  когда  папа  дома,  он больше любит тихонько
 	посидеть у огня и послушать какую-нибудь интересную сказку.
 		В этот вечер...`
+
+type testCase struct {
+	input    string
+	expected []string
+}
 
 func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
@@ -79,4 +84,56 @@ func TestTop10(t *testing.T) {
 			require.Equal(t, expected, Top10(text))
 		}
 	})
+}
+
+func TestTop10LexicalOrder(t *testing.T) {
+	cases := []testCase{
+		{
+			"а в б г д е ж з и к л м н",
+			[]string{"а", "б", "в", "г", "д", "е", "ж", "з", "и", "к"},
+		},
+		{
+			"и д а в б г е ж з к л м н",
+			[]string{"а", "б", "в", "г", "д", "е", "ж", "з", "и", "к"},
+		},
+		{
+			"а в б г д е ж з и к л м н a b c d e",
+			[]string{"a", "b", "c", "d", "e", "а", "б", "в", "г", "д"},
+		},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, c.expected, Top10(c.input))
+	}
+}
+
+func TestTop10Repetitions(t *testing.T) {
+	cases := []testCase{
+		{
+			"а а а а а а а а а а а",
+			[]string{"а"},
+		},
+		{
+			"и д а а б в г д е ж з и к л м н",
+			[]string{"а", "д", "и", "б", "в", "г", "е", "ж", "з", "к"},
+		},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, c.expected, Top10(c.input))
+	}
+}
+
+func TestTop10IgnoreCase(t *testing.T) {
+	input := "Нога, нога, нога и НОГА! Где еще одна нога?"
+	expected := []string{"нога", "где", "еще", "и", "одна"}
+
+	require.Equal(t, expected, Top10(input))
+}
+
+func TestTop10FormsOfWord(t *testing.T) {
+	input := "Где ноги? Нет ног? Вот нога! Добавь еще ногу."
+	expected := []string{"вот", "где", "добавь", "еще", "нет", "ног", "нога", "ноги", "ногу"}
+
+	require.Equal(t, expected, Top10(input))
 }
