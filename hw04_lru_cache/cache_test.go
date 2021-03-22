@@ -50,13 +50,72 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("purge logic", func(t *testing.T) {
-		// Write me
+		c := NewCache(3)
+		s := []string{"a", "b", "c", "d"}
+
+		for i, n := range s {
+			c.Set(Key(n), i)
+		}
+
+		val, ok := c.Get(Key(s[0]))
+		require.Nil(t, val)
+		require.False(t, ok)
+	})
+
+	t.Run("purge logic complex", func(t *testing.T) {
+		c := NewCache(3)
+		s := []string{"a", "b", "c", "d"}
+
+		c.Set(Key(s[0]), 0)
+		c.Set(Key(s[1]), 1)
+		c.Set(Key(s[2]), 2)
+
+		c.Set(Key(s[1]), 1)
+		c.Get(Key(s[2]))
+		c.Get(Key(s[0]))
+		c.Set(Key(s[3]), 3)
+
+		val, ok := c.Get(Key(s[0]))
+		require.True(t, ok)
+		require.NotNil(t, val)
+
+		val, ok = c.Get(Key(s[1]))
+		require.False(t, ok)
+		require.Nil(t, val)
+
+		val, ok = c.Get(Key(s[2]))
+		require.True(t, ok)
+		require.NotNil(t, val)
+	})
+
+	t.Run("purge logic random", func(t *testing.T) {
+		c := NewCache(3)
+		s := []string{"a", "b", "c", "d", "e", "f"}
+
+		for i := 0; i < 3; i++ {
+			c.Set(Key(s[i]), i)
+		}
+
+		for i := 5; i > 3; i-- {
+			c.Get(Key(s[i-3]))
+			c.Set(Key(s[i]), i)
+		}
+
+		val, ok := c.Get(Key(s[5]))
+		require.True(t, ok)
+		require.NotNil(t, val)
+
+		val, ok = c.Get(Key(s[4]))
+		require.True(t, ok)
+		require.NotNil(t, val)
+
+		val, ok = c.Get(Key(s[1]))
+		require.True(t, ok)
+		require.NotNil(t, val)
 	})
 }
 
 func TestCacheMultithreading(t *testing.T) {
-	t.Skip() // Remove me if task with asterisk completed.
-
 	c := NewCache(10)
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
