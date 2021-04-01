@@ -1,7 +1,6 @@
 package hw05parallelexecution
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"sync/atomic"
@@ -34,7 +33,7 @@ func TestRun(t *testing.T) {
 		maxErrorsCount := 23
 		err := Run(tasks, workersCount, maxErrorsCount)
 
-		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
+		require.ErrorIs(t, err, ErrErrorsLimitExceeded, "actual err - %v", err)
 		require.LessOrEqual(t, runTasksCount, int32(workersCount+maxErrorsCount), "extra tasks were started")
 	})
 
@@ -66,5 +65,95 @@ func TestRun(t *testing.T) {
 
 		require.Equal(t, runTasksCount, int32(tasksCount), "not all tasks were completed")
 		require.LessOrEqual(t, int64(elapsedTime), int64(sumTime/2), "tasks were run sequentially?")
+	})
+
+	t.Run("no tasks", func(t *testing.T) {
+		tasksCount := 0
+		workersCount := 2
+		tasks := make([]Task, tasksCount)
+
+		require.NoError(t, Run(tasks, workersCount, 1))
+	})
+
+	t.Run("ignoring errors", func(t *testing.T) {
+		tasksCount := 10
+		workersCount := 2
+		var runTasksCount int32
+		tasks := make([]Task, 0, tasksCount)
+
+		for i := 0; i < tasksCount; i++ {
+			err := fmt.Errorf("error from task %d", i)
+			tasks = append(tasks, func() error {
+				atomic.AddInt32(&runTasksCount, 1)
+				return err
+			})
+		}
+
+		require.NoError(t, Run(tasks, workersCount, -1))
+		require.Equal(t, runTasksCount, int32(tasksCount), "not all tasks were completed")
+
+		atomic.StoreInt32(&runTasksCount, 0)
+
+		require.NoError(t, Run(tasks, workersCount, 0))
+		require.Equal(t, runTasksCount, int32(tasksCount), "not all tasks were completed")
+	})
+
+	t.Run("negative goroutines count", func(t *testing.T) {
+		tasksCount := 10
+		workersCount := -1
+		var runTasksCount int32
+		tasks := make([]Task, 0, tasksCount)
+
+		for i := 0; i < tasksCount; i++ {
+			err := fmt.Errorf("error from task %d", i)
+			tasks = append(tasks, func() error {
+				atomic.AddInt32(&runTasksCount, 1)
+				return err
+			})
+		}
+
+		require.Equal(t, runTasksCount, int32(0), "some of tasks were completed")
+		require.EqualError(t, Run(tasks, workersCount, 1), "goroutines count must be greater than 0")
+	})
+
+	t.Run("concurrency without sleeps", func(t *testing.T) {
+		tasksCount := 50
+		workersCount := 5
+		maxErrorsCount := 1
+		completeChan := make(chan error)
+		tasks := make([]Task, 0, tasksCount)
+
+		var err error
+		var runTasksCount int32
+		var totalTime time.Duration
+
+		for i := 0; i < tasksCount; i++ {
+			taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
+			totalTime += taskSleep
+
+			tasks = append(tasks, func() error {
+				time.Sleep(taskSleep)
+				atomic.AddInt32(&runTasksCount, 1)
+				return nil
+			})
+		}
+
+		go func() {
+			defer close(completeChan)
+
+			completeChan <- Run(tasks, workersCount, maxErrorsCount)
+		}()
+
+		require.Eventually(t, func() bool {
+			select {
+			case err = <-completeChan:
+				return true
+			default:
+				return false
+			}
+		}, totalTime/2, time.Millisecond, "tasks were run sequentially?")
+
+		require.NoError(t, err)
+		require.Equal(t, runTasksCount, int32(tasksCount), "not all tasks were completed")
 	})
 }
