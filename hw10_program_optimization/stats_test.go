@@ -4,6 +4,8 @@ package hw10programoptimization
 
 import (
 	"bytes"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,6 +35,30 @@ func TestGetDomainStat(t *testing.T) {
 
 	t.Run("find 'unknown'", func(t *testing.T) {
 		result, err := GetDomainStat(bytes.NewBufferString(data), "unknown")
+		require.NoError(t, err)
+		require.Equal(t, DomainStat{}, result)
+	})
+
+	t.Run("ignore empty lines", func(t *testing.T) {
+		_, err := GetDomainStat(bytes.NewBufferString(strings.Repeat("\n", 5)), "com")
+		require.NoError(t, err)
+	})
+
+	t.Run("broken json", func(t *testing.T) {
+		_, err := GetDomainStat(io.LimitReader(bytes.NewBufferString(data), 10), "com")
+		require.Contains(t, err.Error(), "cannot parse JSON: cannot parse object")
+	})
+
+	t.Run("wrong email", func(t *testing.T) {
+		data := `{"Id":6,"Name":"Rick Sanchez","Username":"cucumber","Email":".com"}`
+		result, err := GetDomainStat(bytes.NewBufferString(data), "com")
+		require.NoError(t, err)
+		require.Equal(t, DomainStat{}, result)
+	})
+
+	t.Run("second level domain", func(t *testing.T) {
+		data := `{"Id":6,"Name":"Rick Sanchez","Username":"cucumber","Email":"rickey@rick.com.ru"}`
+		result, err := GetDomainStat(bytes.NewBufferString(data), "com")
 		require.NoError(t, err)
 		require.Equal(t, DomainStat{}, result)
 	})
