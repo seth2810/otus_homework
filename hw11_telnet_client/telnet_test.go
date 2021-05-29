@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"net"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -61,5 +63,19 @@ func TestTelnetClient(t *testing.T) {
 		}()
 
 		wg.Wait()
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		b := &bytes.Buffer{}
+		c := NewTelnetClient("1.2.3.4:1234", time.Nanosecond, io.NopCloser(b), b)
+
+		require.ErrorIs(t, c.Connect(), ErrConnectTimeout)
+	})
+
+	t.Run("connection refused", func(t *testing.T) {
+		b := &bytes.Buffer{}
+		c := NewTelnetClient("0.0.0.0:1234", time.Second, io.NopCloser(b), b)
+
+		require.ErrorIs(t, c.Connect(), syscall.ECONNREFUSED)
 	})
 }
