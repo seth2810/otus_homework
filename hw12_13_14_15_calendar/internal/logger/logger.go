@@ -1,20 +1,44 @@
 package logger
 
-import "fmt"
+import (
+	"fmt"
 
-type Logger struct { // TODO
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+type Logger struct {
+	logger *zap.Logger
 }
 
-func New(level string) *Logger {
-	return &Logger{}
+func New(level, file string) (*Logger, error) {
+	var lvl zapcore.Level
+
+	if err := lvl.UnmarshalText([]byte(level)); err != nil {
+		return nil, fmt.Errorf("failed to set log level: %w", err)
+	}
+
+	cfg := zap.Config{
+		Development:      true,
+		Encoding:         "console",
+		OutputPaths:      []string{file},
+		ErrorOutputPaths: []string{file},
+		Level:            zap.NewAtomicLevelAt(lvl),
+		EncoderConfig:    zapcore.EncoderConfig{MessageKey: "M"},
+	}
+
+	logger, err := cfg.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Logger{logger}, nil
 }
 
 func (l Logger) Info(msg string) {
-	fmt.Println(msg)
+	l.logger.Info(msg)
 }
 
 func (l Logger) Error(msg string) {
-	// TODO
+	l.logger.Error(msg)
 }
-
-// TODO
