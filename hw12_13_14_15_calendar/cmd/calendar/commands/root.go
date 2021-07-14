@@ -12,6 +12,7 @@ import (
 	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/app"
 	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/config"
 	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/logger"
+	internalgrpc "github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/server/grpc"
 	internalhttp "github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/server/http"
 	memorystorage "github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/storage/memory"
 	sqlstorage "github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/storage/sql"
@@ -84,9 +85,11 @@ func startApp(ctx context.Context, cfg *config.Config) error {
 
 	calendar := app.New(log, storage)
 
-	address := net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)
+	grpcAddress := net.JoinHostPort(cfg.Server.Grpc.Host, cfg.Server.Grpc.Port)
+	httpAddress := net.JoinHostPort(cfg.Server.HTTP.Host, cfg.Server.HTTP.Port)
 
-	server := internalhttp.NewServer(address, log, calendar)
+	grpcServer := internalgrpc.NewServer(grpcAddress, log, calendar)
+	httpServer := internalhttp.NewServer(httpAddress, grpcAddress, log)
 
 	go func() {
 		<-ctx.Done()
@@ -95,19 +98,36 @@ func startApp(ctx context.Context, cfg *config.Config) error {
 
 		defer cancelFn()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := httpServer.Stop(ctx); err != nil {
 			log.Error(fmt.Sprintln("failed to stop http server:", err))
+		}
+
+		if err := grpcServer.Stop(); err != nil {
+			log.Error(fmt.Sprintln("failed to stop grpc server:", err))
 		}
 	}()
 
 	log.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
-		log.Error(fmt.Sprintln("failed to run http server:", err))
-		return err
-	}
+	errCh := make(chan error, 2)
 
-	return nil
+	go func() {
+		log.Info("grpc is running...")
+
+		if err := grpcServer.Start(ctx); err != nil {
+			errCh <- fmt.Errorf("failed to run grpc server: %w", err)
+		}
+	}()
+
+	go func() {
+		log.Info("http is running...")
+
+		if err := httpServer.Start(ctx); err != nil {
+			errCh <- fmt.Errorf("failed to run http server: %w", err)
+		}
+	}()
+
+	return <-errCh
 }
 
 func Execute() {

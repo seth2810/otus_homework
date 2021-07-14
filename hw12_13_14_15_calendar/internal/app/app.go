@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/storage"
 )
 
@@ -31,7 +32,9 @@ func New(logger Logger, storage Storage) *App {
 }
 
 func (a *App) CreateEvent(ctx context.Context, id, title string) error {
-	return a.storage.CreateEvent(ctx, storage.Event{ID: id, Title: title})
+	ownerID := uuid.New()
+
+	return a.storage.CreateEvent(ctx, storage.Event{ID: id, Title: title, OwnerID: ownerID.String()})
 }
 
 func (a *App) UpdateEvent(ctx context.Context, id string, event storage.Event) error {

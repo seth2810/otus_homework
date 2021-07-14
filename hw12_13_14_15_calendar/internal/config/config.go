@@ -30,6 +30,15 @@ type DatabaseConfig struct {
 }
 
 type ServerConf struct {
+	HTTP HTTPConf
+	Grpc GrpcConf
+}
+
+type HTTPConf struct {
+	Host, Port string
+}
+
+type GrpcConf struct {
 	Host, Port string
 }
 

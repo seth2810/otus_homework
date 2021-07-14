@@ -1,0 +1,15 @@
+version: v1beta1
+plugins:
+  - name: go
+    out: internal/server/grpc/pb
+  - name: go-grpc
+    out: internal/server/grpc/pb
+    opt:
+  - name: validate
+    out: internal/server/grpc/pb
+    opt:
+      - lang=go
+  - name: grpc-gateway
+    out: internal/server/grpc/pb
+    opt:
+      - generate_unbound_methods=true

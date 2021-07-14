@@ -1,0 +1,6 @@
+version: v1beta1
+name: buf.build/seth2810/otus-homework
+deps:
+  - buf.build/beta/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
+  - buf.build/beta/protoc-gen-validate

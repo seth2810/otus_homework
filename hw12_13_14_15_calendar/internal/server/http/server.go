@@ -2,13 +2,18 @@ package internalhttp
 
 import (
 	"context"
-	"io"
 	"net/http"
+
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/server/grpc/pb"
+	"google.golang.org/grpc"
 )
 
 type Server struct {
-	logger Logger
-	server *http.Server
+	httpAddress string
+	grpcAddress string
+	logger      Logger
+	server      *http.Server
 }
 
 type Logger interface {
@@ -16,24 +21,27 @@ type Logger interface {
 	Error(msg string)
 }
 
-type Application interface { // TODO
-}
-
-type HelloHandler struct{}
-
-func NewServer(address string, logger Logger, app Application) *Server {
-	mux := http.NewServeMux()
-	mux.Handle("/hello", loggingMiddleware(&HelloHandler{}, logger))
-
-	server := &http.Server{
-		Addr:    address,
-		Handler: mux,
-	}
-
-	return &Server{logger, server}
+func NewServer(httpAddress, grpcAddress string, logger Logger) *Server {
+	return &Server{httpAddress, grpcAddress, logger, nil}
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	conn, err := grpc.DialContext(ctx, s.grpcAddress, grpc.WithBlock(), grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+
+	mux := runtime.NewServeMux()
+
+	if err = pb.RegisterCalendarServiceHandler(ctx, mux, conn); err != nil {
+		return err
+	}
+
+	s.server = &http.Server{
+		Addr:    s.httpAddress,
+		Handler: loggingMiddleware(mux, s.logger),
+	}
+
 	if err := s.server.ListenAndServe(); err != nil {
 		return err
 	}
@@ -45,10 +53,4 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
-}
-
-func (h *HelloHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-
-	io.WriteString(w, "ok")
 }
