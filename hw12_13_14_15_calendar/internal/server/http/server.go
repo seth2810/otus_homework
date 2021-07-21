@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/server/grpc/pb"
+	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/api/pb"
 	"google.golang.org/grpc"
 )
 

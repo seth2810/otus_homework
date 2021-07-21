@@ -7,7 +7,7 @@ import (
 
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcvalidator "github.com/grpc-ecosystem/go-grpc-middleware/validator"
-	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/server/grpc/pb"
+	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/api/pb"
 	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -35,7 +35,7 @@ type Application interface {
 }
 
 func NewServer(address string, logger Logger, app Application) *Server {
-	return &Server{address, logger, nil, &calendarServiceServer{app: app}}
+	return &Server{address, logger, nil, NewService(app)}
 }
 
 func (s *Server) Start(ctx context.Context) error {
