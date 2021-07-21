@@ -2,23 +2,51 @@ package sqlstorage
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pressly/goose"
+	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/config"
 	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/internal/storage"
+	"github.com/seth2810/otus_homework/hw12_13_14_15_calendar/migrations"
 )
+
+func init() {
+	goose.AddNamedMigration("00001_create_events_table.go", migrations.Up0001, migrations.Down0001)
+}
 
 type Storage struct {
 	db *sqlx.DB
 }
 
-func New(dsn string) (*Storage, error) {
-	db, err := sqlx.Open("postgres", dsn)
+func Init(ctx context.Context, cfg config.DatabaseConfig) (*Storage, error) {
+	dsn := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DB,
+	)
+
+	db, err := goose.OpenDBWithDriver("postgres", dsn)
 	if err != nil {
+		return nil, fmt.Errorf("failed to open DB: %w", err)
+	}
+
+	if err := goose.Up(db, "migrations"); err != nil {
+		return nil, fmt.Errorf("failed to migrate: %w", err)
+	}
+
+	storage := New(db)
+
+	if err := storage.Connect(ctx); err != nil {
 		return nil, err
 	}
 
-	return &Storage{db}, nil
+	return storage, nil
+}
+
+func New(conn *sql.DB) *Storage {
+	return &Storage{sqlx.NewDb(conn, "postgres")}
 }
 
 func (s *Storage) Connect(ctx context.Context) error {
@@ -44,9 +72,11 @@ func (s *Storage) CreateEvent(ctx context.Context, event storage.Event) error {
 func (s *Storage) UpdateEvent(ctx context.Context, id string, event storage.Event) error {
 	_, err := s.db.ExecContext(ctx, `
 		update events
-		set title=?, starts_at=?, duration=?, description=?, owner_id=?, notify_before=?
-		where id=?
-	`, event.Title, event.StartsAt, event.Duration, event.Description, event.OwnerID, event.NotifyBefore, id)
+		set
+			title=$1, starts_at=$2, duration=$3, description=$4, owner_id=$5,
+			notify_before=$6, notification_sent=$7
+		where id=$8
+	`, event.Title, event.StartsAt, event.Duration, event.Description, event.OwnerID, event.NotifyBefore, event.NotificationSent, id)
 
 	return err
 }
@@ -77,10 +107,22 @@ func (s *Storage) ListMonthEvents(ctx context.Context, date time.Time) ([]storag
 	return s.listEventsBetween(ctx, from, from.AddDate(0, 1, 0))
 }
 
+func (s *Storage) RemoveEventsBefore(ctx context.Context, from time.Time) error {
+	fromTS := from.Format("2006-01-02 15:04:05-07")
+	query := "delete from events where starts_at <= $1"
+
+	_, err := s.db.ExecContext(ctx, query, fromTS)
+
+	return err
+}
+
 func (s *Storage) listEventsBetween(ctx context.Context, from, to time.Time) ([]storage.Event, error) {
+	query := "select * from events where starts_at between $1 and $2 order by starts_at"
+	fromTS := from.Format("2006-01-02 15:04:05-07")
+	toTS := to.Format("2006-01-02 15:04:05-07")
 	events := []storage.Event{}
 
-	if err := s.db.SelectContext(ctx, &events, "select * from events where starts_at between ? and ?", from, to); err != nil {
+	if err := s.db.SelectContext(ctx, &events, query, fromTS, toTS); err != nil {
 		return nil, err
 	}
 

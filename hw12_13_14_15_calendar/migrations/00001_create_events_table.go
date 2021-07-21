@@ -9,11 +9,12 @@ func Up0001(tx *sql.Tx) error {
 		CREATE TABLE events (
 			id varchar(36) PRIMARY KEY,
 			title varchar(255) NOT NULL,
-			starts_at timestamp NOT NULL DEFAULT NOW(),
-			duration varchar(32) NOT NULL,
-			description text,
-			owner_id bigint NOT NULL,
-			notify_before varchar(32)
+			starts_at timestamptz NOT NULL DEFAULT current_timestamp,
+			duration bigint NOT NULL DEFAULT 0,
+			description text NOT NULL DEFAULT '',
+			owner_id varchar(36) NOT NULL,
+			notify_before bigint NOT NULL DEFAULT 0,
+			notification_sent boolean NOT NULL DEFAULT false
 		);
 	`
 
